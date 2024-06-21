@@ -1,6 +1,7 @@
 const express = require('express');
 const { Server } = require("socket.io");
 const http = require('http');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
@@ -11,7 +12,13 @@ const io = new Server(server, {
   }
 });
 
-app.use(express.static('client/build')); // Adjust the path to your client build
+// Serve static files from the React app
+app.use(express.static(path.join(__dirname, '../client/build')));
+
+// Routes to handle React routing, return all requests to React app
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
+});
 
 io.on("connection", (socket) => {
   console.log(`Socket Connected`, socket.id);
@@ -19,7 +26,7 @@ io.on("connection", (socket) => {
     const { email, room } = data;
     emailToSocketIdMap.set(email, socket.id);
     socketidToEmailMap.set(socket.id, email);
-    io.to(room).emit("user:joined",{email,id:socket.id});
+    io.to(room).emit("user:joined", { email, id: socket.id });
     socket.join(room);
     io.to(socket.id).emit("room:join", data);
   });
@@ -39,6 +46,7 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(process.env.PORT || 8000, () => {
-  console.log('Server is running on port', process.env.PORT || 8000);
+const PORT = process.env.PORT || 8000;
+server.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
