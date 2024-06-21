@@ -1,11 +1,17 @@
+const express = require('express');
 const { Server } = require("socket.io");
+const http = require('http');
 
-const io = new Server(8000, {
-  cors: true,
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
 });
 
-const emailToSocketIdMap = new Map();
-const socketidToEmailMap = new Map();
+app.use(express.static('client/build')); // Adjust the path to your client build
 
 io.on("connection", (socket) => {
   console.log(`Socket Connected`, socket.id);
@@ -16,7 +22,7 @@ io.on("connection", (socket) => {
     io.to(room).emit("user:joined",{email,id:socket.id});
     socket.join(room);
     io.to(socket.id).emit("room:join", data);
-  })
+  });
   socket.on("user:call", ({ to, offer }) => {
     io.to(to).emit("incoming:call", { from: socket.id, offer });
   });
@@ -27,9 +33,12 @@ io.on("connection", (socket) => {
     console.log("peer:nego:needed", offer);
     io.to(to).emit("peer:nego:needed", { from: socket.id, offer });
   });
-    socket.on("peer:nego:done", ({ to, ans }) => {
+  socket.on("peer:nego:done", ({ to, ans }) => {
     console.log("peer:nego:done", ans);
     io.to(to).emit("peer:nego:final", { from: socket.id, ans });
   });
-  
+});
+
+server.listen(process.env.PORT || 8000, () => {
+  console.log('Server is running on port', process.env.PORT || 8000);
 });
